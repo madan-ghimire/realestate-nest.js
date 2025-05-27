@@ -19,9 +19,6 @@ export class AuthDto {
   password: string;
 
   @IsString()
-  username: string;
-
-  @IsString()
   firstName: string;
 
   @IsString()

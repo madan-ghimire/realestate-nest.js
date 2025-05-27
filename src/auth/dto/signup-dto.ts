@@ -19,14 +19,6 @@ export class SignUpDto {
   password: string;
 
   @ApiProperty({
-    description: 'The unique username of the user',
-    example: 'johndoe',
-  })
-  @IsString()
-  @IsOptional()
-  username: string;
-
-  @ApiProperty({
     description: 'The first name of the user',
     example: 'John',
   })

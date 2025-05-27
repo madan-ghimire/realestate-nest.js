@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
-import { BookmarkModule } from './bookmark/bookmark.module';
+import { PropertyModule } from './property/property.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ConfigModule } from '@nestjs/config';
-import { BookmarkService } from './bookmark/bookmark.service';
+import { PropertyService } from './property/property.service';
 
 @Module({
   imports: [
@@ -14,9 +14,9 @@ import { BookmarkService } from './bookmark/bookmark.service';
     }),
     AuthModule,
     UserModule,
-    BookmarkModule,
+    PropertyModule,
     PrismaModule,
   ],
-  providers: [BookmarkService],
+  providers: [PropertyService],
 })
 export class AppModule {}

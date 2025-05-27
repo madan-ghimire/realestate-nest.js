@@ -23,10 +23,8 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle('Healthcare Management System API')
-    .setDescription(
-      'Enterprise healthcare management system API for patient care, medical records, appointments, billing, and clinical operations.',
-    )
+    .setTitle('Realestate Management System API')
+    .setDescription('Enterprise Realestate management system API.')
     .setVersion('1.0')
     .addBearerAuth({
       type: 'http',

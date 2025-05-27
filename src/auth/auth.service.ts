@@ -1,11 +1,9 @@
 import { ForbiddenException, Injectable, Post } from '@nestjs/common';
-// import { PrismaService } from 'src/prisma/prisma.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 import * as bcrypt from 'bcrypt';
 import { SignInDto } from './dto/signin-dto';
 import { SignUpDto } from './dto/signup-dto';
-// import { saltRounds } from 'constants/constants';
 import { saltRounds } from '../../constants/constants';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { JwtService } from '@nestjs/jwt';
@@ -28,7 +26,6 @@ export class AuthService {
         data: {
           email: dto.email,
           password: hashedPassword,
-          username: dto.username,
           firstName: dto.firstName,
           lastName: dto.lastName,
           displayName:

@@ -1,8 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// Real Estate SaaS Application Schema
+// Production-ready schema for property management, listings, and real estate operations
 
 generator client {
   provider = "prisma-client-js"
@@ -13,37 +10,1406 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ===== ENUMS =====
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  AGENT
+  BROKER
+  PROPERTY_MANAGER
+  CLIENT
+  TENANT
+  LANDLORD
+}
+
+enum PropertyType {
+  RESIDENTIAL
+  COMMERCIAL
+  INDUSTRIAL
+  LAND
+  MIXED_USE
+}
+
+enum PropertySubType {
+  // Residential
+  HOUSE
+  APARTMENT
+  CONDO
+  TOWNHOUSE
+  VILLA
+  STUDIO
+  DUPLEX
+
+  // Commercial
+  OFFICE
+  RETAIL
+  WAREHOUSE
+  RESTAURANT
+  HOTEL
+  SHOPPING_CENTER
+
+  // Industrial
+  FACTORY
+  MANUFACTURING
+  STORAGE
+  DISTRIBUTION_CENTER
+
+  // Land
+  RESIDENTIAL_LAND
+  COMMERCIAL_LAND
+  AGRICULTURAL_LAND
+  INDUSTRIAL_LAND
+}
+
+enum ListingStatus {
+  DRAFT
+  ACTIVE
+  PENDING
+  UNDER_CONTRACT
+  SOLD
+  RENTED
+  EXPIRED
+  WITHDRAWN
+  SUSPENDED
+}
+
+enum ListingType {
+  FOR_SALE
+  FOR_RENT
+  FOR_LEASE
+}
+
+enum PropertyCondition {
+  EXCELLENT
+  GOOD
+  FAIR
+  POOR
+  NEEDS_RENOVATION
+  NEW_CONSTRUCTION
+}
+
+enum TransactionType {
+  SALE
+  RENTAL
+  LEASE
+}
+
+enum TransactionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  OVERDUE
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentType {
+  DEPOSIT
+  RENT
+  COMMISSION
+  MAINTENANCE_FEE
+  UTILITY_BILL
+  INSURANCE
+  PROPERTY_TAX
+  LEASE_FEE
+  APPLICATION_FEE
+  OTHER
+}
+
+enum InquiryStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  SCHEDULED_VIEWING
+  VIEWED
+  INTERESTED
+  NEGOTIATING
+  CLOSED
+  LOST
+}
+
+enum MaintenanceStatus {
+  REQUESTED
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ON_HOLD
+}
+
+enum MaintenancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  EMERGENCY
+}
+
+enum NotificationType {
+  EMAIL
+  SMS
+  PUSH
+  IN_APP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  READ
+}
+
+enum AppointmentType {
+  VIEWING
+  CONSULTATION
+  INSPECTION
+  APPRAISAL
+  MEETING
+}
+
+enum ContractStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  COMPLETED
+  TERMINATED
+  EXPIRED
+}
+
+// ===== CORE MODELS =====
+
+// User Model
 model User {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  username String? @unique
-  email    String  @unique
+  // Authentication & Identity
+  email    String   @unique
   password String
+  role     UserRole @default(CLIENT)
 
-  firstName     String?
-  lastName      String?
-  displayName   String?
-  isActive      Boolean    @default(true)
-  loginEnabled  Boolean    @default(true)
-  emailVerified Boolean    @default(false)
-  Bookmark      Bookmark[]
+  // Account Status
+  isActive        Boolean   @default(true)
+  emailVerified   Boolean   @default(false)
+  isArchived      Boolean   @default(false)
+  lastLoginAt     DateTime?
+  emailVerifiedAt DateTime?
+
+  // Basic Information
+  firstName   String
+  lastName    String
+  displayName String?
+  phone       String?
+  avatar      String?
+
+  // Address
+  address String?
+  city    String?
+  state   String?
+  zipCode String?
+  country String  @default("USA")
+
+  // Profile Relations
+  agentProfile    Agent?
+  clientProfile   Client?
+  tenantProfile   Tenant?
+  landlordProfile Landlord?
+
+  // Activity Relations
+  listings         Listing[]
+  inquiries        Inquiry[]
+  appointments     Appointment[]
+  notifications    Notification[]
+  reviews          Review[]       @relation("ReviewAuthor")
+  receivedReviews  Review[]       @relation("ReviewTarget")
+  sentMessages     Message[]      @relation("MessageSender")
+  receivedMessages Message[]      @relation("MessageReceiver")
 
   @@map("users")
 }
 
-model Bookmark {
+// Agent Model
+model Agent {
   id        String   @id @default(uuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  agentId        String    @unique // Custom agent ID (e.g., AGT001)
+  licenseNumber  String    @unique
+  licenseState   String
+  licenseExpiry  DateTime?
+  experience     Int // Years of experience
+  commission     Decimal   @db.Decimal(5, 2) // Commission percentage
+  biography      String?
+  specialization String[] // Array of specializations
+
+  // Performance Metrics
+  totalSales     Int      @default(0)
+  totalRentals   Int      @default(0)
+  totalVolume    Decimal  @default(0) @db.Decimal(15, 2)
+  averageRating  Decimal? @db.Decimal(3, 2)
+  responseTime   Int?     @default(24) // Average response time in hours
+  activeListings Int      @default(0)
+
+  // Business Information
+  website   String?
+  linkedin  String?
+  facebook  String?
+  instagram String?
+  languages String[] // Languages spoken
+
+  // Relations
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  agency   Agency? @relation(fields: [agencyId], references: [id])
+  agencyId String?
+
+  listings     Listing[]
+  transactions Transaction[]
+  inquiries    Inquiry[]
+  appointments Appointment[]
+  teamMembers  AgentTeam[]   @relation("TeamLead")
+  teamMember   AgentTeam[]   @relation("TeamMember")
+
+  @@map("agents")
+}
+
+// Client Model
+model Client {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clientType        String    @default("INDIVIDUAL") // INDIVIDUAL, COMPANY, INVESTOR
+  companyName       String?
+  budget            Decimal?  @db.Decimal(12, 2)
+  preApprovalAmount Decimal?  @db.Decimal(12, 2)
+  preApprovalExpiry DateTime?
+  creditScore       Int?
+  employmentStatus  String?
+  annualIncome      Decimal?  @db.Decimal(12, 2)
+
+  // Preferences
+  preferredLocations String[] // Array of preferred areas
+  propertyTypes      PropertyType[]
+  minBedrooms        Int?
+  maxBedrooms        Int?
+  minBathrooms       Decimal?       @db.Decimal(3, 1)
+  maxBathrooms       Decimal?       @db.Decimal(3, 1)
+  minPrice           Decimal?       @db.Decimal(12, 2)
+  maxPrice           Decimal?       @db.Decimal(12, 2)
+  minArea            Decimal?       @db.Decimal(10, 2)
+  maxArea            Decimal?       @db.Decimal(10, 2)
+
+  // Additional Requirements
+  petFriendly      Boolean @default(false)
+  smokingAllowed   Boolean @default(false)
+  furnished        Boolean @default(false)
+  parkingRequired  Boolean @default(false)
+  elevatorRequired Boolean @default(false)
+
+  // Relations
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  inquiries     Inquiry[]
+  appointments  Appointment[]
+  transactions  Transaction[]
+  favorites     Favorite[]
+  savedSearches SavedSearch[]
+
+  @@map("clients")
+}
+
+// Tenant Model
+model Tenant {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  emergencyContact   String?
+  emergencyPhone     String?
+  employerName       String?
+  employerPhone      String?
+  monthlyIncome      Decimal? @db.Decimal(10, 2)
+  previousAddress    String?
+  reasonForMoving    String?
+  petsDescription    String?
+  vehicleDescription String?
+
+  // Relations
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  leases              Lease[]
+  maintenanceRequests MaintenanceRequest[]
+  payments            Payment[]
+
+  @@map("tenants")
+}
+
+// Landlord Model
+model Landlord {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessName     String?
+  businessLicense  String?
+  taxId            String?
+  bankAccount      String?
+  routingNumber    String?
+  preferredPayment String? // "ACH", "CHECK", "WIRE"
+
+  // Relations
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  properties Property[]
+  leases     Lease[]
+
+  @@map("landlords")
+}
+
+// Agency Model
+model Agency {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name        String  @unique
+  description String?
+  website     String?
+  phone       String?
+  email       String?
+  logo        String?
+
+  // Address
+  address String?
+  city    String?
+  state   String?
+  zipCode String?
+  country String  @default("USA")
+
+  // Business Details
+  licenseNumber     String? @unique
+  establishedYear   Int?
+  mlsId             String? // MLS membership ID
+  narMember         Boolean @default(false) // National Association of Realtors
+  totalAgents       Int     @default(0)
+  totalListings     Int     @default(0)
+  totalTransactions Int     @default(0)
+
+  // Relations
+  agents Agent[]
+  teams  Team[]
+
+  @@map("agencies")
+}
+
+// Team Model (for organizing agents within agencies)
+model Team {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name        String
+  description String?
+
+  // Relations
+  agencyId String
+  agency   Agency @relation(fields: [agencyId], references: [id])
+
+  members AgentTeam[]
+
+  @@map("teams")
+}
+
+// Agent Team Relationships
+model AgentTeam {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  role String @default("MEMBER") // LEAD, MEMBER, ASSISTANT
+
+  // Relations
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  teamLeadId String?
+  teamLead   Agent?  @relation("TeamLead", fields: [teamLeadId], references: [id])
+
+  memberId String
+  member   Agent  @relation("TeamMember", fields: [memberId], references: [id])
+
+  @@unique([teamId, memberId])
+  @@map("agent_teams")
+}
+
+// Property Model
+model Property {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Basic Information
+  title        String
+  description  String?
+  propertyType PropertyType
+  subType      PropertySubType
+  condition    PropertyCondition @default(GOOD)
+  yearBuilt    Int?
+
+  // Location
+  address        String
+  city           String
+  state          String
+  zipCode        String
+  country        String   @default("USA")
+  latitude       Decimal? @db.Decimal(10, 8)
+  longitude      Decimal? @db.Decimal(11, 8)
+  neighborhood   String?
+  schoolDistrict String?
+
+  // Property Details
+  totalArea     Decimal? @db.Decimal(10, 2) // Square feet
+  livingArea    Decimal? @db.Decimal(10, 2) // Livable square feet
+  lotSize       Decimal? @db.Decimal(10, 2) // Square feet
+  bedrooms      Int?
+  bathrooms     Decimal? @db.Decimal(3, 1)
+  halfBathrooms Int?     @default(0)
+  floors        Int?
+  parkingSpaces Int?     @default(0)
+  garageSpaces  Int?     @default(0)
+
+  // Building Features
+  basement    Boolean @default(false)
+  attic       Boolean @default(false)
+  balcony     Boolean @default(false)
+  patio       Boolean @default(false)
+  pool        Boolean @default(false)
+  fireplace   Boolean @default(false)
+  garden      Boolean @default(false)
+  petFriendly Boolean @default(false)
+  furnished   Boolean @default(false)
+
+  // Amenities (JSON)
+  amenities String? // JSON array of amenities
+  features  String? // JSON array of features
+
+  // Utilities & Systems
+  heating       String? // Type of heating
+  cooling       String? // Type of cooling
+  utilities     String[] // Array of included utilities
+  internetSpeed String?
+  energyRating  String? // Energy efficiency rating
+
+  // Financial Information
+  propertyTax    Decimal? @db.Decimal(10, 2)
+  hoaFees        Decimal? @db.Decimal(8, 2)
+  insurance      Decimal? @db.Decimal(8, 2)
+  maintenanceFee Decimal? @db.Decimal(8, 2)
+
+  // Zoning & Legal
+  zoning           String?
+  parcelNumber     String?
+  deedRestrictions String?
+
+  // Ownership
+  ownerId String?
+  owner   Landlord? @relation(fields: [ownerId], references: [id])
+
+  // Relations
+  listings            Listing[]
+  images              PropertyImage[]
+  documents           PropertyDocument[]
+  maintenanceRequests MaintenanceRequest[]
+  leases              Lease[]
+  inspections         Inspection[]
+
+  @@map("properties")
+}
+
+// Listing Model
+model Listing {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Listing Details
+  listingId   String        @unique // Custom listing ID (e.g., LST001)
+  mlsNumber   String?       @unique // MLS listing number
   title       String
   description String?
-  link        String
+  type        ListingType
+  status      ListingStatus @default(DRAFT)
+
+  // Pricing
+  price         Decimal  @db.Decimal(12, 2)
+  originalPrice Decimal? @db.Decimal(12, 2)
+  pricePerSqft  Decimal? @db.Decimal(8, 2)
+  priceHistory  String? // JSON array of price changes
+
+  // Rental specific
+  monthlyRent     Decimal? @db.Decimal(10, 2)
+  securityDeposit Decimal? @db.Decimal(10, 2)
+  leaseTermMin    Int? // Minimum lease term in months
+  leaseTermMax    Int? // Maximum lease term in months
+  applicationFee  Decimal? @db.Decimal(8, 2)
+
+  // Availability
+  availableDate DateTime?
+  moveInDate    DateTime?
+  showingSafety String? // COVID-related or safety instructions
+
+  // Dates
+  listedDate     DateTime  @default(now())
+  expirationDate DateTime?
+  soldDate       DateTime?
+  daysOnMarket   Int       @default(0)
+
+  // Marketing
+  featured       Boolean @default(false)
+  virtualTourUrl String?
+  videoUrl       String?
+  tourScheduled  Boolean @default(false)
+
+  // Metrics
+  views     Int @default(0)
+  inquiries Int @default(0)
+  favorites Int @default(0)
+  showings  Int @default(0)
+
+  // SEO & Marketing
+  metaTitle       String?
+  metaDescription String?
+  keywords        String[] // Array of keywords
+
+  // Relations
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
 
   userId String
   user   User   @relation(fields: [userId], references: [id])
 
-  @@map("bookmarks")
+  inquiryList   Inquiry[]
+  appointments  Appointment[]
+  transactions  Transaction[]
+  favoritesList Favorite[]
+
+  @@map("listings")
+}
+
+// Property Images Model
+model PropertyImage {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  url          String
+  thumbnailUrl String?
+  caption      String?
+  isPrimary    Boolean @default(false)
+  sortOrder    Int     @default(0)
+  roomType     String? // "living_room", "bedroom", "kitchen", "bathroom", etc.
+
+  // Image metadata
+  width    Int?
+  height   Int?
+  fileSize Int? // File size in bytes
+  format   String? // "jpg", "png", "webp"
+
+  // Relations
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("property_images")
+}
+
+// Property Documents Model
+model PropertyDocument {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name       String
+  type       String // e.g., "deed", "inspection_report", "floor_plan", "hoa_docs"
+  url        String
+  size       Int? // File size in bytes
+  uploadedBy String?
+  isPublic   Boolean   @default(false)
+  expiryDate DateTime?
+
+  // Relations
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@map("property_documents")
+}
+
+// Enhanced Inquiry Model
+model Inquiry {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inquiryId String        @unique // Custom inquiry ID
+  subject   String?
+  message   String
+  status    InquiryStatus @default(NEW)
+  source    String? // e.g., "website", "phone", "email", "walk-in"
+  priority  String        @default("MEDIUM") // HIGH, MEDIUM, LOW
+
+  // Contact preferences
+  preferredContact String? // "email", "phone", "both"
+  bestTimeToCall   String?
+  timeZone         String?
+
+  // Lead qualification
+  budget         Decimal? @db.Decimal(12, 2)
+  timeline       String? // "immediate", "1_month", "3_months", "6_months"
+  preApproved    Boolean  @default(false)
+  firstTimeBuyer Boolean  @default(false)
+  cashBuyer      Boolean  @default(false)
+
+  // Follow-up
+  followUpDate   DateTime?
+  responseTime   Int? // Time to first response in minutes
+  resolutionTime Int? // Time to resolution in hours
+
+  // Relations
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id])
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  agentId String?
+  agent   Agent?  @relation(fields: [agentId], references: [id])
+
+  @@map("inquiries")
+}
+
+// Appointment Model (replacing Viewing)
+model Appointment {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  title         String
+  type          AppointmentType
+  scheduledDate DateTime
+  endDate       DateTime?
+  duration      Int             @default(30) // Duration in minutes
+  status        String          @default("SCHEDULED") // SCHEDULED, CONFIRMED, COMPLETED, CANCELLED, NO_SHOW, RESCHEDULED
+  location      String?
+  notes         String?
+  feedback      String?
+
+  // Meeting details
+  meetingLink      String? // For virtual appointments
+  confirmationSent Boolean @default(false)
+  reminderSent     Boolean @default(false)
+
+  // Relations
+  listingId String?
+  listing   Listing? @relation(fields: [listingId], references: [id])
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  @@map("appointments")
+}
+
+// Transaction Model
+model Transaction {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  transactionId String            @unique // Custom transaction ID
+  type          TransactionType
+  status        TransactionStatus @default(PENDING)
+
+  // Financial Details
+  salePrice        Decimal? @db.Decimal(12, 2)
+  commission       Decimal? @db.Decimal(10, 2)
+  commissionRate   Decimal? @db.Decimal(5, 2)
+  buyerCommission  Decimal? @db.Decimal(10, 2)
+  sellerCommission Decimal? @db.Decimal(10, 2)
+
+  // Closing costs
+  closingCosts   Decimal? @db.Decimal(10, 2)
+  titleFees      Decimal? @db.Decimal(8, 2)
+  inspectionFees Decimal? @db.Decimal(8, 2)
+  appraisalFees  Decimal? @db.Decimal(8, 2)
+
+  // Dates
+  contractDate    DateTime?
+  inspectionDate  DateTime?
+  appraisalDate   DateTime?
+  closingDate     DateTime?
+  moveInDate      DateTime?
+  keyHandoverDate DateTime?
+
+  // Lease Details (for rentals)
+  monthlyRent     Decimal?  @db.Decimal(10, 2)
+  securityDeposit Decimal?  @db.Decimal(10, 2)
+  leaseStartDate  DateTime?
+  leaseEndDate    DateTime?
+  leaseTerm       Int? // Lease term in months
+
+  // Parties involved
+  buyerName    String?
+  sellerName   String?
+  buyerAgent   String?
+  sellerAgent  String?
+  titleCompany String?
+  lender       String?
+
+  notes String?
+
+  // Relations
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id])
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  payments  Payment[]
+  documents TransactionDocument[]
+
+  @@map("transactions")
+}
+
+// Transaction Documents
+model TransactionDocument {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name              String
+  type              String // "contract", "disclosure", "inspection", "appraisal"
+  url               String
+  size              Int?
+  uploadedBy        String?
+  signatureRequired Boolean   @default(false)
+  isSigned          Boolean   @default(false)
+  signedDate        DateTime?
+
+  // Relations
+  transactionId String
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@map("transaction_documents")
+}
+
+// Enhanced Payment Model
+model Payment {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  paymentId String        @unique // Custom payment ID
+  amount    Decimal       @db.Decimal(12, 2)
+  type      PaymentType
+  status    PaymentStatus @default(PENDING)
+
+  paymentMethod String? // "cash", "check", "wire_transfer", "credit_card", "ach"
+  paymentDate   DateTime?
+  dueDate       DateTime?
+  lateDate      DateTime?
+  description   String?
+
+  // Payment processing
+  processorId  String? // Payment processor transaction ID
+  processorFee Decimal? @db.Decimal(8, 2)
+  netAmount    Decimal? @db.Decimal(12, 2)
+
+  // Recurring payments
+  isRecurring    Boolean   @default(false)
+  recurringUntil DateTime?
+  frequency      String? // "monthly", "quarterly", "annually"
+
+  // Relations
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@map("payments")
+}
+
+// Lease Model
+model Lease {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leaseId String         @unique
+  status  ContractStatus @default(DRAFT)
+
+  // Lease terms
+  startDate       DateTime
+  endDate         DateTime
+  monthlyRent     Decimal  @db.Decimal(10, 2)
+  securityDeposit Decimal  @db.Decimal(10, 2)
+  lateFee         Decimal? @db.Decimal(8, 2)
+  renewalOption   Boolean  @default(false)
+
+  // Lease conditions
+  petDeposit        Decimal? @db.Decimal(8, 2)
+  utilitiesIncluded String[] // Array of included utilities
+  parkingIncluded   Boolean  @default(false)
+  smokingAllowed    Boolean  @default(false)
+
+  // Terms and conditions
+  terms             String?
+  specialConditions String?
+
+  // Automatic renewal
+  autoRenewal   Boolean @default(false)
+  renewalNotice Int?    @default(30) // Days notice required
+
+  // Relations
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+
+  landlordId String
+  landlord   Landlord @relation(fields: [landlordId], references: [id])
+
+  @@map("leases")
+}
+
+// Inspection Model
+model Inspection {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inspectionId     String    @unique
+  type             String // "general", "termite", "environmental", "structural"
+  scheduledDate    DateTime
+  completedDate    DateTime?
+  inspectorName    String
+  inspectorLicense String?
+  cost             Decimal?  @db.Decimal(8, 2)
+
+  // Results
+  status         String  @default("SCHEDULED") // SCHEDULED, COMPLETED, FAILED
+  reportUrl      String?
+  summary        String?
+  issuesFound    Boolean @default(false)
+  criticalIssues Boolean @default(false)
+
+  // Relations
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+
+  @@map("inspections")
+}
+
+// Favorite/Saved Listings Model
+model Favorite {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  notes String?
+
+  // Relations
+  listingId String
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@unique([listingId, clientId])
+  @@map("favorites")
+}
+
+// Saved Search Model
+model SavedSearch {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name           String
+  searchCriteria String // JSON object with search parameters
+  alertsEnabled  Boolean   @default(true)
+  frequency      String    @default("DAILY") // IMMEDIATE, DAILY, WEEKLY
+  lastAlert      DateTime?
+
+  // Relations
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("saved_searches")
+}
+
+// Review Model
+model Review {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rating     Int // 1-5 stars
+  title      String?
+  comment    String?
+  isPublic   Boolean @default(true)
+  isVerified Boolean @default(false)
+
+  // Service-specific ratings
+  communicationRating   Int?
+  professionalismRating Int?
+  marketKnowledgeRating Int?
+  responseTimeRating    Int?
+
+  // Relations
+  authorId String
+  author   User   @relation("ReviewAuthor", fields: [authorId], references: [id])
+
+  targetId String // Can be agent or agency
+  target   User   @relation("ReviewTarget", fields: [targetId], references: [id])
+
+  @@map("reviews")
+}
+
+// Enhanced Maintenance Request Model
+model MaintenanceRequest {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  requestId   String              @unique // Custom request ID
+  title       String
+  description String
+  category    String // e.g., "plumbing", "electrical", "hvac", "appliance"
+  priority    MaintenancePriority @default(MEDIUM)
+  status      MaintenanceStatus   @default(REQUESTED)
+
+  // Location within property
+  location String? // "kitchen", "master bedroom", "basement"
+
+  // Vendor information
+  vendorName  String?
+  vendorPhone String?
+  vendorEmail String?
+
+  // Cost
+  estimatedCost Decimal? @db.Decimal(10, 2)
+  actualCost    Decimal? @db.Decimal(10, 2)
+  approvedCost  Decimal? @db.Decimal(10, 2)
+
+  // Dates
+  requestedDate DateTime  @default(now())
+  scheduledDate DateTime?
+  completedDate DateTime?
+
+  // Work details
+  workDescription String?
+  completionNotes String?
+  warrantyInfo    String?
+
+  // Images
+  beforeImages String[] // Array of image URLs
+  afterImages  String[] // Array of image URLs
+
+  notes String?
+
+  // Relations
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id])
+
+  tenantId String?
+  tenant   Tenant? @relation(fields: [tenantId], references: [id])
+
+  @@map("maintenance_requests")
+}
+
+// Message/Communication Model
+model Message {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subject     String?
+  content     String
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  messageType String    @default("TEXT") // TEXT, EMAIL, SMS
+  priority    String    @default("NORMAL") // HIGH, NORMAL, LOW
+
+  // Message thread
+  threadId String?
+  replyTo  String? // ID of message being replied to
+
+  // Attachments
+  attachments String[] // Array of file URLs
+
+  // Relations
+  senderId String
+  sender   User   @relation("MessageSender", fields: [senderId], references: [id])
+
+  receiverId String
+  receiver   User   @relation("MessageReceiver", fields: [receiverId], references: [id])
+
+  @@map("messages")
+}
+
+// Notification Model
+model Notification {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  title    String
+  message  String
+  type     NotificationType
+  status   NotificationStatus @default(PENDING)
+  priority String             @default("NORMAL") // HIGH, NORMAL, LOW
+
+  // Notification data
+  actionUrl  String? // URL to navigate when clicked
+  actionData String? // JSON data for the action
+
+  // Delivery tracking
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  readAt      DateTime?
+
+  // Scheduling
+  scheduledFor DateTime?
+  expiresAt    DateTime?
+
+  // Relations
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// Market Analysis Model
+model MarketAnalysis {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  area         String // Geographic area (zip code, city, neighborhood)
+  propertyType PropertyType
+  subType      PropertySubType?
+  period       String // e.g., "2024-Q1", "2024-01"
+
+  // Market Metrics
+  averagePrice        Decimal @db.Decimal(12, 2)
+  medianPrice         Decimal @db.Decimal(12, 2)
+  pricePerSqft        Decimal @db.Decimal(8, 2)
+  averageDaysOnMarket Int
+  medianDaysOnMarket  Int
+  inventoryCount      Int
+  soldCount           Int
+  newListings         Int
+  priceReductions     Int
+
+  // Rental market (if applicable)
+  averageRent Decimal? @db.Decimal(10, 2)
+  medianRent  Decimal? @db.Decimal(10, 2)
+  rentPerSqft Decimal? @db.Decimal(6, 2)
+  vacancyRate Decimal? @db.Decimal(5, 2)
+
+  // Trends (percentage changes)
+  priceChange     Decimal @db.Decimal(6, 2) // Percentage change
+  volumeChange    Decimal @db.Decimal(6, 2) // Percentage change
+  domChange       Decimal @db.Decimal(6, 2) // Days on market change
+  inventoryChange Decimal @db.Decimal(6, 2) // Inventory change
+
+  // Absorption rate
+  monthsOfSupply Decimal? @db.Decimal(4, 1)
+
+  @@unique([area, propertyType, period])
+  @@map("market_analysis")
+}
+
+// Lead Model
+model Lead {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Contact Information
+  firstName String
+  lastName  String
+  email     String
+  phone     String?
+
+  // Lead Source & Tracking
+  source         String? // "website", "referral", "advertisement", "social_media", "cold_call"
+  campaign       String? // Marketing campaign identifier
+  referralSource String? // Who referred them
+  utmSource      String? // UTM tracking parameters
+  utmMedium      String?
+  utmCampaign    String?
+
+  // Lead Status & Qualification
+  status      String @default("NEW") // NEW, CONTACTED, QUALIFIED, NURTURING, CONVERTED, LOST, UNQUALIFIED
+  score       Int    @default(0) // Lead scoring (0-100)
+  temperature String @default("COLD") // HOT, WARM, COLD
+
+  // Requirements
+  budget         Decimal? @db.Decimal(12, 2)
+  timeline       String? // "immediate", "1_month", "3_months", "6_months", "1_year+"
+  propertyType   String?
+  preferredAreas String[] // Array of preferred locations
+  motivation     String? // Why they want to buy/sell
+
+  // Qualification Details
+  preApproved    Boolean @default(false)
+  firstTimeBuyer Boolean @default(false)
+  cashBuyer      Boolean @default(false)
+  currentlyOwns  Boolean @default(false)
+  needsToSell    Boolean @default(false)
+
+  // Communication Preferences
+  preferredContact String? // "email", "phone", "text", "any"
+  bestTimeToCall   String?
+  timeZone         String?
+  doNotCall        Boolean @default(false)
+  unsubscribed     Boolean @default(false)
+
+  // Follow-up & Notes
+  lastContactDate  DateTime?
+  nextFollowUpDate DateTime?
+  notes            String?
+
+  // Assignment
+  assignedAgentId String?
+  assignedDate    DateTime?
+
+  @@map("leads")
+}
+
+// CRM Activity Model (for tracking all interactions)
+model CrmActivity {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  type        String // "call", "email", "meeting", "note", "task", "showing"
+  subject     String
+  description String?
+  outcome     String? // Result of the activity
+  duration    Int? // Duration in minutes
+
+  // Scheduling
+  scheduledDate DateTime?
+  completedDate DateTime?
+  isCompleted   Boolean   @default(false)
+
+  // Contact information
+  contactId   String // Can be lead, client, or prospect
+  contactType String // "lead", "client", "prospect"
+
+  // Assignment
+  assignedTo String? // User ID of assigned agent
+  createdBy  String // User ID of creator
+
+  @@map("crm_activities")
+}
+
+// Email Template Model
+model EmailTemplate {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name     String  @unique
+  subject  String
+  content  String // HTML content
+  category String // "welcome", "follow_up", "listing_alert", "market_update"
+  isActive Boolean @default(true)
+
+  // Template variables (JSON)
+  variables String? // Available merge variables
+
+  // Usage tracking
+  timesUsed Int       @default(0)
+  lastUsed  DateTime?
+
+  @@map("email_templates")
+}
+
+// Automated Email Campaign Model
+model EmailCampaign {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name        String
+  description String?
+  status      String  @default("DRAFT") // DRAFT, ACTIVE, PAUSED, COMPLETED
+
+  // Campaign settings
+  triggerType    String // "manual", "new_lead", "listing_match", "date_based"
+  targetAudience String // JSON criteria for targeting
+
+  // Timing
+  startDate DateTime?
+  endDate   DateTime?
+  sendTime  String? // Preferred send time
+
+  // Templates
+  templateId    String?
+  customContent String?
+
+  // Metrics
+  totalSent    Int @default(0)
+  totalOpened  Int @default(0)
+  totalClicked Int @default(0)
+  totalReplied Int @default(0)
+
+  // Created by
+  createdBy String
+
+  @@map("email_campaigns")
+}
+
+// System Settings Model
+model SystemSetting {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  key         String  @unique
+  value       String
+  category    String?
+  description String?
+  dataType    String  @default("STRING") // STRING, INTEGER, BOOLEAN, JSON
+  isPublic    Boolean @default(false) // Whether setting is visible to non-admins
+
+  @@map("system_settings")
+}
+
+// Audit Log Model (for tracking important system changes)
+model AuditLog {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  action     String // "CREATE", "UPDATE", "DELETE", "LOGIN", "LOGOUT"
+  entityType String // "USER", "LISTING", "PROPERTY", "TRANSACTION"
+  entityId   String // ID of the affected entity
+
+  // Change details
+  oldValues String? // JSON of old values
+  newValues String? // JSON of new values
+
+  // User information
+  userId    String
+  userEmail String
+  userRole  String
+  ipAddress String?
+  userAgent String?
+
+  @@map("audit_logs")
+}
+
+// API Key Model (for third-party integrations)
+model ApiKey {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name        String
+  keyHash     String   @unique // Hashed API key
+  permissions String[] // Array of permissions
+  isActive    Boolean  @default(true)
+
+  // Usage tracking
+  lastUsed     DateTime?
+  requestCount Int       @default(0)
+
+  // Expiration
+  expiresAt DateTime?
+
+  // Owner
+  userId String
+
+  @@map("api_keys")
+}
+
+// Webhook Model (for external integrations)
+model Webhook {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name     String
+  url      String
+  events   String[] // Array of events to listen for
+  isActive Boolean  @default(true)
+  secret   String? // For webhook signature verification
+
+  // Retry configuration
+  maxRetries Int @default(3)
+  timeout    Int @default(30) // Seconds
+
+  // Usage tracking
+  totalCalls Int       @default(0)
+  lastCall   DateTime?
+  lastStatus String?
+
+  @@map("webhooks")
+}
+
+// File Upload Model (for tracking all file uploads)
+model FileUpload {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  originalName String
+  fileName     String @unique // Generated file name
+  fileSize     Int // Size in bytes
+  mimeType     String
+  url          String
+
+  // File metadata
+  entityType String? // What this file is attached to
+  entityId   String? // ID of the entity
+  uploadedBy String // User ID
+
+  // File status
+  isProcessed Boolean @default(true)
+  isPublic    Boolean @default(false)
+
+  // Expiration (for temporary files)
+  expiresAt DateTime?
+
+  @@map("file_uploads")
 }
