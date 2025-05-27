@@ -23,7 +23,7 @@ export class SignUpDto {
     example: 'John',
   })
   @IsString()
-  @IsOptional()
+  @IsNotEmpty()
   firstName: string;
 
   @ApiProperty({
@@ -31,6 +31,78 @@ export class SignUpDto {
     example: 'Doe',
   })
   @IsString()
-  @IsOptional()
+  @IsNotEmpty()
   lastName: string;
+
+  @ApiProperty({
+    description: 'The display name of the user',
+    example: 'johnnyD',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  displayName?: string;
+
+  @ApiProperty({
+    description: 'Phone number of the user',
+    example: '+1234567890',
+    required: false,
+  })
+  @IsOptional()
+  phone?: string;
+
+  @ApiProperty({
+    description: 'Avatar image URL',
+    example: 'https://example.com/avatar.jpg',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  avatar?: string;
+
+  @ApiProperty({
+    description: 'Street address of the user',
+    example: '123 Main St',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  address?: string;
+
+  @ApiProperty({
+    description: 'City of the user',
+    example: 'New York',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  city?: string;
+
+  @ApiProperty({
+    description: 'State of the user',
+    example: 'NY',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  state?: string;
+
+  @ApiProperty({
+    description: 'ZIP Code of the user',
+    example: '10001',
+    required: false,
+  })
+  @IsString()
+  @IsOptional()
+  zipCode?: string;
+
+  @ApiProperty({
+    description: 'Country of the user',
+    example: 'USA',
+    required: false,
+    default: 'USA',
+  })
+  @IsString()
+  @IsOptional()
+  country?: string = 'USA';
 }
